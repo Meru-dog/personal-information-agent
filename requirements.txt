@@ -1,0 +1,15 @@
+# Core transcription
+faster-whisper>=1.0.0
+# Configuration
+PyYAML>=6.0
+
+# Logging
+colorlog>=6.7.0
+
+# Audio format support
+# Note: ffmpeg binary must also be installed: brew install ffmpeg
+ffmpeg-python>=0.2.0
+
+# Development / testing
+pytest>=7.0
+pytest-mock>=3.0

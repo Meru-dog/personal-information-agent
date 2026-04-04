@@ -1,0 +1,50 @@
+# Voice Memo Transcription System Configuration
+# Edit these paths to match your setup before running.
+
+# Folder where your smartphone syncs audio files (iCloud Drive, Google Drive, etc.)
+sync_folder: "/Users/rioiida/Library/Mobile Documents/com~apple~CloudDocs/voice-record"
+
+# Path to your Obsidian Vault
+obsidian_vault: "/Users/rioiida/Desktop/personal-information"
+
+# Subfolder inside the vault where transcriptions are saved
+obsidian_subfolder: "Daily Voice Logs"
+
+whisper:
+  # Model size: tiny / base / small / medium / large-v2 / large-v3
+  # large-v2 recommended for Japanese accuracy; medium for speed tradeoff
+  model_size: "large-v2"
+  # Device: auto (detects CPU/CUDA/MPS), cpu, cuda
+  device: "auto"
+  # Compute type: int8 (recommended for CPU/MPS), float16 (GPU), float32
+  compute_type: "int8"
+  language: "ja"
+  beam_size: 5
+
+watcher:
+  # Seconds between folder scans
+  poll_interval_seconds: 10
+  # Number of consecutive polls with same file size before processing
+  # Prevents processing files mid-sync
+  file_stability_checks: 2
+  supported_extensions:
+    - ".m4a"
+    - ".mp3"
+    - ".wav"
+    - ".aac"
+    - ".ogg"
+    - ".flac"
+    - ".opus"
+    - ".caf"
+    - ".mp4"
+
+filler_removal:
+  enabled: true
+  # Additional filler words beyond the built-in Japanese defaults
+  extra_fillers: []
+
+logging:
+  level: "INFO"  # DEBUG | INFO | WARNING | ERROR
+  log_file: "~/.voice_transcribe/app.log"
+  max_bytes: 5242880  # 5 MB
+  backup_count: 3
