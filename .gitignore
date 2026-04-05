@@ -15,6 +15,9 @@ build/
 venv/
 env/
 ENV/
+.env
+.env.*
+!.env.example
 
 # faster-whisper model cache
 ~/.cache/huggingface/
@@ -38,3 +41,5 @@ ENV/
 # Processed/failed audio (these live inside sync_folder, not the repo)
 processed/
 failed/
+.env
+.env
