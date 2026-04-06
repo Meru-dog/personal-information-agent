@@ -13,8 +13,8 @@ from pathlib import Path
 
 from src.config.settings import load_settings
 from src.services.file_watcher import FileWatcher
-from src.services.formatter import Formatter
-from src.services.markdown_writer import MarkdownWriter
+from src.services.markdown_writer import MarkdownWriter, get_recording_date
+from src.services.summarizer import Summarizer, SummarizationError
 from src.services.transcriber import Transcriber, TranscriptionError
 from src.utils import processed_tracker as tracker
 from src.utils.logger import get_logger, setup_logging
@@ -23,37 +23,38 @@ from src.utils.logger import get_logger, setup_logging
 def process_file(
     audio_path: Path,
     transcriber: Transcriber,
-    formatter: Formatter,
+    summarizer: Summarizer,
     writer: MarkdownWriter,
     settings,
     logger,
 ) -> None:
     logger.info(f"Processing: {audio_path.name}")
-    timestamp = datetime.now()
+    recording_date = get_recording_date(audio_path)
+    processed_at = datetime.now()
     raw_segments: list[str] = []
 
     try:
-        # Phase 1: transcribe and stream each raw segment to .raw.md in real time.
-        def collecting_stream():
-            for text in transcriber.transcribe_stream(audio_path):
-                raw_segments.append(text)
-                yield text
+        # Phase 1: transcribe
+        for text in transcriber.transcribe_stream(audio_path):
+            raw_segments.append(text)
 
-        _, raw_count = writer.write_raw_stream(collecting_stream(), audio_path, timestamp)
-
-        if raw_count == 0:
+        if not raw_segments:
             logger.warning(f"Empty transcription for {audio_path.name} — moving to failed.")
             tracker.mark_failed(audio_path, settings.failed_dir, "Transcription returned empty text.")
             return
 
-        # Phase 2: apply rule-based formatting and write .md
-        try:
-            formatted_text = formatter.format(raw_segments)
-        except Exception as fmt_err:
-            logger.error(f"Formatting failed, using raw text: {fmt_err}")
-            formatted_text = "\n".join(raw_segments)
+        # Phase 2: structured memo via Qwen (optional)
+        structured_memo = ""
+        if settings.qwen.enabled:
+            try:
+                structured_memo = summarizer.summarize(raw_segments, audio_path, recording_date)
+            except SummarizationError as e:
+                logger.error(f"Summarization failed: {e}")
+                structured_memo = f"*構造化メモの生成に失敗しました。エラー: {e}*"
 
-        writer.write_formatted(formatted_text, audio_path, timestamp)
+        # Phase 3: write per-recording file in date directory
+        raw_text = "\n".join(raw_segments)
+        writer.write_session(structured_memo, raw_text, audio_path, recording_date, processed_at)
         tracker.mark_processed(audio_path, settings.processed_dir)
         logger.info(f"Done: {audio_path.name}")
 
@@ -91,11 +92,11 @@ def main() -> None:
     transcriber = Transcriber(settings)
     transcriber.load_model()
 
-    formatter = Formatter(settings.extra_fillers)
+    summarizer = Summarizer(settings)
     writer = MarkdownWriter(settings)
 
     def handle_file(audio_path: Path) -> None:
-        process_file(audio_path, transcriber, formatter, writer, settings, log)
+        process_file(audio_path, transcriber, summarizer, writer, settings, log)
 
     watcher = FileWatcher(settings, on_new_file=handle_file)
 
